@@ -1,0 +1,31 @@
+[Unit]
+Description=Atlassian Jira Data Center
+After=network.target
+
+[Service]
+Type=forking
+User=jira
+WorkingDirectory=/opt/atlassian/jira
+Environment="JIRA_HOME=/var/atlassian/application-data/jira"
+Environment="JIRA_USER=jira"
+Environment="JAVA_HOME=/usr/lib/jvm/java-11-openjdk"
+
+# Startup
+ExecStart=/bin/bash /opt/atlassian/jira/bin/start-jira.sh
+ExecStop=/bin/bash /opt/atlassian/jira/bin/stop-jira.sh
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Restart policy
+Restart=always
+RestartSec=10s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jira
+
+[Install]
+WantedBy=multi-user.target
