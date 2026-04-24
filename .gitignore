@@ -1,0 +1,9 @@
+*.pp
+*.mod
+*.if
+*.tmp
+.#*
+*~
+*.swp
+*.o
+.DS_Store
