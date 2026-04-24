@@ -1,0 +1,257 @@
+module jira 1.0.0;
+
+##############################################################################
+# JIRA SELinux Policy Module
+#
+# Provides confined access for Atlassian Jira Data Center with:
+#   - Restricted file access
+#   - Network port bindings
+#   - Inter-process communication
+#   - Minimal privilege escalation
+##############################################################################
+
+require {
+	type init_t;
+	type initrc_t;
+	type kernel_t;
+	type sysfs_t;
+	type proc_t;
+	type proc_net_t;
+	type device_t;
+	type random_device_t;
+	type tmp_t;
+	type lib_t;
+	type locale_t;
+	type passwd_file_t;
+	type net_conf_t;
+	type sssd_var_lib_t;
+	type init_var_run_t;
+	type initrc_tmp_t;
+	type sysctl_net_t;
+	type node_t;
+	type http_cache_port_t;
+	type mxi_port_t;
+	type mysqld_port_t;
+	type http_port_t;
+	type fs_t;
+	type cert_t;
+	attribute file_type;
+	attribute domain;
+	role system_r;
+
+	class file { open read write append getattr setattr create unlink rename execute execute_no_trans entrypoint map lock ioctl };
+	class dir { open read write search getattr setattr create add_name remove_name rmdir };
+	class lnk_file { read getattr create };
+	class chr_file { open read write append getattr ioctl };
+	class blk_file { open read };
+	class sock_file { create read write getattr setattr };
+	class fifo_file { read write getattr setattr append };
+	class unix_stream_socket { create bind listen accept read write getattr setattr connect connectto };
+	class unix_dgram_socket { create bind connect read write getattr };
+	class tcp_socket { create bind listen accept setopt getopt getattr read write name_bind node_bind connect name_connect shutdown ioctl };
+	class udp_socket { create bind setopt getopt read write name_bind connect getattr ioctl };
+	class netlink_route_socket { create bind read write nlmsg_read getattr getopt setopt };
+	class netif { tcp_recv tcp_send };
+	class node { tcp_recv tcp_send udp_recv udp_send };
+	class process { signal signull sigkill sigstop transition fork execmem };
+	class capability { dac_override setgid setuid net_bind_service chown fowner fsetid };
+	class capability2 { block_suspend audit_read };
+	class filesystem { getattr };
+}
+
+########################################
+# Type Declarations
+########################################
+
+# JIRA application domain
+type jira_t;
+typeattribute jira_t domain;
+role system_r types jira_t;
+type jira_exec_t;
+typeattribute jira_exec_t file_type;
+
+# JIRA file types
+type jira_install_t;
+typeattribute jira_install_t file_type;
+type jira_home_t;
+typeattribute jira_home_t file_type;
+type jira_log_t;
+typeattribute jira_log_t file_type;
+type jira_tmp_t;
+typeattribute jira_tmp_t file_type;
+
+# JIRA port types
+type jira_http_port_t;
+type jira_shutdown_port_t;
+type eazybi_port_t;
+
+########################################
+# File Access Permissions
+########################################
+
+# /opt/atlassian/jira - Installation directory (read-only)
+allow jira_t jira_install_t : dir { open read write search getattr add_name remove_name };
+allow jira_t jira_install_t : file { open read getattr execute execute_no_trans map };
+allow jira_t jira_install_t : lnk_file { read getattr };
+
+# /var/atlassian/application-data/jira - Home directory (read-write)
+allow jira_t jira_home_t : dir { create open read write search getattr setattr add_name remove_name rmdir };
+allow jira_t jira_home_t : file { create open read write append getattr setattr unlink rename lock map ioctl };
+allow jira_t jira_home_t : lnk_file { create read };
+
+# Logs (including /opt/atlassian/jira/logs/catalina.out)
+allow jira_t jira_log_t : dir { open read write search getattr setattr add_name remove_name };
+allow jira_t jira_log_t : file { create open read write append getattr setattr unlink ioctl };
+
+# Temp files and Tomcat work directory (/opt/atlassian/jira/work)
+allow jira_t jira_tmp_t : dir { create open read write search getattr setattr add_name remove_name rmdir };
+allow jira_t jira_tmp_t : file { create open read write append getattr setattr unlink rename execute execute_no_trans map };
+
+########################################
+# Network Permissions
+########################################
+
+# TCP socket creation and binding
+allow jira_t self : tcp_socket { create bind listen accept setopt getopt getattr read write connect shutdown ioctl };
+allow jira_t self : udp_socket { create bind setopt getopt read write connect getattr ioctl };
+
+# Netlink for network interface discovery
+allow jira_t self : netlink_route_socket { create bind read write nlmsg_read getattr getopt setopt };
+
+# Network interfaces and nodes
+allow jira_t self : netif { tcp_recv tcp_send };
+allow jira_t self : node { tcp_recv tcp_send udp_recv udp_send };
+
+# Port binding - use actual system port labels for 8080 and 8005
+allow jira_t http_cache_port_t : tcp_socket { name_bind name_connect };
+allow jira_t mxi_port_t : tcp_socket name_bind;
+allow jira_t eazybi_port_t : tcp_socket name_bind;
+
+# Outbound HTTPS (port 443) - marketplace, plugin updates, analytics
+allow jira_t http_port_t : tcp_socket name_connect;
+
+# Root filesystem statfs() - Java/libraries call statfs on mount points
+allow jira_t fs_t : filesystem { getattr };
+
+########################################
+# Process and Capability Permissions
+########################################
+
+# Process signals and management
+allow jira_t self : process { signal signull sigkill sigstop execmem };
+allow jira_t self : capability { dac_override setgid setuid net_bind_service chown fowner fsetid };
+allow jira_t self : capability2 { block_suspend audit_read };
+
+# File operations via self
+allow jira_t self : file { read write append getattr setattr };
+allow jira_t self : fifo_file { read write getattr setattr };
+allow jira_t self : unix_stream_socket { create bind listen accept read write getattr setattr };
+allow jira_t self : unix_dgram_socket { create bind connect read write getattr };
+
+########################################
+# System Access
+########################################
+
+# /proc/[pid] - JVM scans all process directories and reads /proc/[pid]/stat for GC/profiling
+allow jira_t domain : dir { getattr search };
+allow jira_t domain : file { getattr };
+
+# Kernel/sysfs access
+allow jira_t proc_t : dir { open read search getattr };
+allow jira_t proc_t : file { open read getattr };
+allow jira_t proc_t : lnk_file { read };
+
+# /proc/net - network information
+allow jira_t proc_net_t : dir { open read search getattr };
+allow jira_t proc_net_t : file { open read getattr };
+allow jira_t proc_net_t : lnk_file { read getattr };
+
+allow jira_t sysfs_t : dir { open read search getattr };
+allow jira_t sysfs_t : file { open read getattr };
+allow jira_t sysfs_t : lnk_file { read getattr };
+
+# Device access - generic and specific random/urandom
+allow jira_t device_t : dir { open read search getattr };
+allow jira_t device_t : chr_file { open read getattr };
+allow jira_t device_t : blk_file { open read };
+allow jira_t random_device_t : chr_file { open read write append getattr ioctl };
+
+# Dynamic libraries
+allow jira_t lib_t : dir { open read search getattr };
+allow jira_t lib_t : file { open read getattr execute map };
+allow jira_t lib_t : lnk_file { read getattr };
+
+# System temp files
+allow jira_t tmp_t : file { create open read write append getattr setattr unlink };
+allow jira_t tmp_t : dir { open read write search getattr add_name remove_name };
+
+# Locale data
+allow jira_t locale_t : dir { open read search getattr };
+allow jira_t locale_t : file { open read getattr };
+
+# User/group database - Java reads /etc/passwd for user info
+allow jira_t passwd_file_t : file { open read getattr };
+
+# Network config - /etc/resolv.conf and /etc/hosts for DNS
+allow jira_t net_conf_t : file { open read getattr };
+
+# SSL certificates - /etc/pki for HTTPS/TLS connections
+allow jira_t cert_t : dir { getattr search };
+allow jira_t cert_t : file { open read getattr };
+allow jira_t cert_t : lnk_file { read getattr };
+
+# SSSD directory - NSS lookups go through SSSD on this host
+allow jira_t sssd_var_lib_t : dir { search };
+
+# systemd runtime dir - /run/systemd/ (searched during startup)
+allow jira_t init_var_run_t : dir { search };
+
+# /tmp/hsperfdata_jira - JVM perf data dir, created under initrc_t context
+allow jira_t initrc_tmp_t : dir { open read write getattr search add_name remove_name };
+allow jira_t initrc_tmp_t : file { create open read write append getattr setattr unlink map };
+
+# /proc/sys/net - sysctl net directory
+allow jira_t sysctl_net_t : dir { search };
+
+########################################
+# Init Script Access (startup runs in initrc_t before Java exec)
+########################################
+
+# Allow initrc_t to read and execute jira shell scripts (jira_install_t)
+# These scripts stay in initrc_t - transition only happens when Java (jira_exec_t) is exec'd
+allow initrc_t jira_install_t : dir { open read search getattr };
+allow initrc_t jira_install_t : file { read open getattr execute execute_no_trans };
+allow initrc_t jira_install_t : lnk_file { read getattr };
+
+########################################
+# Domain Transition Rules
+########################################
+
+# jira_exec_t is the entrypoint into jira_t; jira_t also re-execs java itself (JVM launcher)
+allow jira_t jira_exec_t : file { entrypoint open read getattr execute execute_no_trans map };
+
+# init_t -> jira_t transition (direct systemd exec)
+allow init_t jira_exec_t : file { read open getattr execute };
+allow init_t jira_t : process transition;
+type_transition init_t jira_exec_t : process jira_t;
+
+# initrc_t -> jira_t transition (systemd service running via init script)
+allow initrc_t jira_exec_t : file { read open getattr execute };
+allow initrc_t jira_t : process transition;
+type_transition initrc_t jira_exec_t : process jira_t;
+
+# Signal management
+allow init_t jira_t : process { signal signull };
+allow initrc_t jira_t : process { signal signull };
+
+# Allow jira to interact with init/systemd (connectto + write to journald socket)
+allow jira_t init_t : unix_stream_socket { connectto write };
+
+# Bind TCP sockets to loopback node
+allow jira_t node_t : tcp_socket node_bind;
+
+# Outbound TCP to MySQL (port 3306)
+allow jira_t mysqld_port_t : tcp_socket name_connect;
+
+# Allow jira_t to write to inherited pipes from the start script (initrc_t)
+allow jira_t initrc_t : fifo_file { read write append };
