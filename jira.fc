@@ -1,0 +1,26 @@
+# JIRA File Contexts
+#
+# File context for JIRA Data Center installation and home directories
+#
+
+# Installation directory - read-only
+/opt/atlassian/jira(/.*)?                          system_u:object_r:jira_install_t:s0
+/opt/atlassian/jira/logs(/.*)?                     system_u:object_r:jira_log_t:s0
+/opt/atlassian/jira/work(/.*)?                     system_u:object_r:jira_tmp_t:s0
+/opt/atlassian/jira/temp(/.*)?                     system_u:object_r:jira_tmp_t:s0
+/opt/atlassian/jira/bin/setenv\.sh                 system_u:object_r:jira_install_t:s0
+/opt/atlassian/jira/bin/catalina\.sh               system_u:object_r:jira_install_t:s0
+/opt/atlassian/jira/bin/start-jira\.sh             system_u:object_r:jira_install_t:s0
+/opt/atlassian/jira/bin/stop-jira\.sh              system_u:object_r:jira_install_t:s0
+
+# Home directory - read-write
+/var/atlassian/application-data/jira(/.*)?        system_u:object_r:jira_home_t:s0
+/var/atlassian/application-data/jira/logs(/.*)?   system_u:object_r:jira_log_t:s0
+
+# Temporary files
+/tmp/jira.*                                        system_u:object_r:jira_tmp_t:s0
+/var/tmp/jira.*                                    system_u:object_r:jira_tmp_t:s0
+
+# Java entrypoints - triggers domain transition to jira_t
+/usr/lib/jvm/java-11-openjdk.*/bin/java        -- system_u:object_r:jira_exec_t:s0
+/opt/atlassian/jira/jre/bin/java               -- system_u:object_r:jira_exec_t:s0
