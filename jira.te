@@ -152,9 +152,10 @@ allow jira_t self : unix_dgram_socket { create bind connect read write getattr }
 # System Access
 ########################################
 
-# /proc/[pid] - JVM scans all process directories and reads /proc/[pid]/stat for GC/profiling
+# /proc/[pid] - JVM scans all process directories and reads /proc/[pid]/stat, cmdline, status etc.
 allow jira_t domain : dir { getattr search };
-allow jira_t domain : file { getattr };
+allow jira_t domain : file { getattr read };
+allow jira_t domain : lnk_file { read getattr };
 
 # Kernel/sysfs access
 allow jira_t proc_t : dir { open read search getattr };
