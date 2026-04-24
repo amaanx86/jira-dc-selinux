@@ -36,6 +36,20 @@ require {
 	type fs_t;
 	type cert_t;
 	type shell_exec_t;
+	type bpf_t;
+	type cgroup_t;
+	type configfs_t;
+	type devpts_t;
+	type dosfs_t;
+	type fusefs_t;
+	type hugetlbfs_t;
+	type tracefs_t;
+	type pstore_t;
+	type sysctl_fs_t;
+	type user_tmp_t;
+	type var_lib_nfs_t;
+	type binfmt_misc_fs_t;
+	type rpc_pipefs_t;
 	attribute file_type;
 	attribute domain;
 	role system_r;
@@ -47,7 +61,7 @@ require {
 	class blk_file { open read };
 	class sock_file { create read write getattr setattr };
 	class fifo_file { read write getattr setattr append };
-	class unix_stream_socket { create bind listen accept read write getattr setattr connect connectto };
+	class unix_stream_socket { create bind listen accept read write append getattr setattr connect connectto };
 	class unix_dgram_socket { create bind connect read write getattr };
 	class tcp_socket { create bind listen accept setopt getopt getattr read write name_bind node_bind connect name_connect shutdown ioctl };
 	class udp_socket { create bind setopt getopt read write name_bind connect getattr ioctl };
@@ -125,7 +139,7 @@ allow jira_t self : node { tcp_recv tcp_send udp_recv udp_send };
 
 # Port binding - use actual system port labels for 8080 and 8005
 allow jira_t http_cache_port_t : tcp_socket { name_bind name_connect };
-allow jira_t mxi_port_t : tcp_socket name_bind;
+allow jira_t mxi_port_t : tcp_socket { name_bind name_connect };
 allow jira_t eazybi_port_t : tcp_socket name_bind;
 
 # Outbound HTTPS (port 443) - marketplace, plugin updates, analytics
@@ -212,8 +226,26 @@ allow jira_t init_var_run_t : dir { search };
 allow jira_t initrc_tmp_t : dir { open read write getattr search add_name remove_name };
 allow jira_t initrc_tmp_t : file { create open read write append getattr setattr unlink map };
 
-# /proc/sys/net - sysctl net directory
+# /proc/sys/net and /proc/sys/fs - sysctl directories
 allow jira_t sysctl_net_t : dir { search };
+allow jira_t sysctl_fs_t : dir { search };
+
+# JVM statfs() on virtual/special filesystems during mount enumeration
+allow jira_t bpf_t : dir { getattr };
+allow jira_t cgroup_t : dir { getattr };
+allow jira_t configfs_t : dir { getattr };
+allow jira_t devpts_t : dir { getattr };
+allow jira_t dosfs_t : dir { getattr };
+allow jira_t fusefs_t : dir { getattr };
+allow jira_t hugetlbfs_t : dir { getattr };
+allow jira_t pstore_t : dir { getattr };
+allow jira_t tracefs_t : dir { getattr };
+allow jira_t binfmt_misc_fs_t : dir { getattr };
+allow jira_t rpc_pipefs_t : dir { getattr };
+
+# User tmp and NFS lib dirs - JVM traverses these during path resolution
+allow jira_t user_tmp_t : dir { search getattr };
+allow jira_t var_lib_nfs_t : dir { search };
 
 ########################################
 # Init Script Access (startup runs in initrc_t before Java exec)
@@ -247,7 +279,7 @@ allow init_t jira_t : process { signal signull };
 allow initrc_t jira_t : process { signal signull };
 
 # Allow jira to interact with init/systemd (connectto + write to journald socket)
-allow jira_t init_t : unix_stream_socket { connectto write };
+allow jira_t init_t : unix_stream_socket { connectto write append };
 
 # Bind TCP sockets to loopback node
 allow jira_t node_t : tcp_socket node_bind;
