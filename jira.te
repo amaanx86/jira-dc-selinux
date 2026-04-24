@@ -35,11 +35,12 @@ require {
 	type http_port_t;
 	type fs_t;
 	type cert_t;
+	type shell_exec_t;
 	attribute file_type;
 	attribute domain;
 	role system_r;
 
-	class file { open read write append getattr setattr create unlink rename execute execute_no_trans entrypoint map lock ioctl };
+	class file { open read write append getattr setattr create unlink rename execute execute_no_trans entrypoint map lock ioctl relabelfrom relabelto };
 	class dir { open read write search getattr setattr create add_name remove_name rmdir };
 	class lnk_file { read getattr create };
 	class chr_file { open read write append getattr ioctl };
@@ -96,7 +97,7 @@ allow jira_t jira_install_t : lnk_file { read getattr };
 
 # /var/atlassian/application-data/jira - Home directory (read-write)
 allow jira_t jira_home_t : dir { create open read write search getattr setattr add_name remove_name rmdir };
-allow jira_t jira_home_t : file { create open read write append getattr setattr unlink rename lock map ioctl };
+allow jira_t jira_home_t : file { create open read write append getattr setattr unlink rename lock map ioctl relabelfrom };
 allow jira_t jira_home_t : lnk_file { create read };
 
 # Logs (including /opt/atlassian/jira/logs/catalina.out)
@@ -256,3 +257,6 @@ allow jira_t mysqld_port_t : tcp_socket name_connect;
 
 # Allow jira_t to write to inherited pipes from the start script (initrc_t)
 allow jira_t initrc_t : fifo_file { read write append };
+
+# Shell access - Jira background threads (Caesium scheduler) exec /bin/bash
+allow jira_t shell_exec_t : file { open read getattr execute execute_no_trans map };
