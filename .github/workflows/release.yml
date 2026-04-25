@@ -1,0 +1,120 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: rockylinux:9
+            name: el9
+            label: Rocky Linux 9
+          - distro: quay.io/centos/centos:stream9
+            name: centos-stream9
+            label: CentOS Stream 9
+          - distro: almalinux:9
+            name: almalinux9
+            label: AlmaLinux 9
+          - distro: fedora:latest
+            name: fedora
+            label: Fedora
+
+    name: Build (${{ matrix.label }})
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.distro }}
+
+    steps:
+      - name: Install SELinux toolchain
+        run: |
+          dnf install -y \
+            selinux-policy-devel \
+            make \
+            git
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint - check policy syntax
+        run: make check
+
+      - name: Build policy module
+        run: make all
+
+      - name: Rename artifact with distro suffix
+        run: cp jira.pp jira-${{ matrix.name }}.pp
+
+      - name: Generate checksum
+        run: sha256sum jira-${{ matrix.name }}.pp > jira-${{ matrix.name }}.pp.sha256
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jira-selinux-${{ matrix.name }}
+          path: |
+            jira-${{ matrix.name }}.pp
+            jira-${{ matrix.name }}.pp.sha256
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List release assets
+        run: ls -lh artifacts/
+
+      - name: Generate release notes
+        run: |
+          cat > notes.md <<'EOF'
+          ## Installation
+
+          ```bash
+          # Download the module for your distro
+          curl -LO <asset-url>/jira-el9.pp
+
+          # Verify checksum
+          sha256sum -c jira-el9.pp.sha256
+
+          # Install
+          sudo semodule -i jira-el9.pp
+
+          # Relabel Jira directories
+          sudo restorecon -RFv /opt/atlassian/jira
+          sudo restorecon -RFv /var/atlassian/application-data/jira
+          ```
+
+          ## Supported Platforms
+
+          | File | Platform |
+          |------|----------|
+          | `jira-el9.pp` | RHEL 9 / Rocky Linux 9 |
+          | `jira-centos-stream9.pp` | CentOS Stream 9 |
+          | `jira-almalinux9.pp` | AlmaLinux 9 |
+          | `jira-fedora.pp` | Fedora (latest) |
+          EOF
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --notes-file notes.md \
+            artifacts/jira-*.pp \
+            artifacts/jira-*.sha256

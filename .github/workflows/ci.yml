@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: rockylinux:9
+            name: Rocky Linux 9
+          - distro: quay.io/centos/centos:stream9
+            name: CentOS Stream 9
+          - distro: almalinux:9
+            name: AlmaLinux 9
+          - distro: fedora:latest
+            name: Fedora
+
+    name: Build (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.distro }}
+
+    steps:
+      - name: Install SELinux toolchain
+        run: |
+          dnf install -y \
+            selinux-policy-devel \
+            make \
+            git
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint - check policy syntax
+        run: make check
+
+      - name: Build policy module
+        run: make all
+
+      - name: Verify artifact
+        run: |
+          test -f jira.pp
+          echo "Module built successfully: $(stat -c '%s' jira.pp) bytes"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jira-selinux-${{ matrix.name }}
+          path: jira.pp
+          retention-days: 30
