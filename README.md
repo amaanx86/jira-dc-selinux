@@ -2,7 +2,7 @@
 
 SELinux policy module for Atlassian Jira Data Center on RHEL/CentOS 9.
 
-<img src="assets/jira-logo.png" alt="Jira" height="80" />     <img src="assets/selinux-logo.png" alt="SELinux" height="80" />     <img src="assets/redhat-logo.png" alt="Red Hat" height="80" />
+<img src=".github/assets/jira-logo.png" alt="Jira" height="80" />     <img src=".github/assets/selinux-logo.png" alt="SELinux" height="80" />     <img src=".github/assets/redhat-logo.png" alt="Red Hat" height="80" />
 
 ## Requirements
 
