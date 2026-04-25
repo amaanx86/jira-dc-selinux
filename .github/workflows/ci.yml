@@ -35,7 +35,7 @@ jobs:
             git
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Lint - check policy syntax
         run: make check
@@ -49,7 +49,7 @@ jobs:
           echo "Module built successfully: $(stat -c '%s' jira.pp) bytes"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jira-selinux-${{ matrix.name }}
           path: jira.pp
