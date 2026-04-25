@@ -41,7 +41,7 @@ jobs:
             git
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Lint - check policy syntax
         run: make check
@@ -56,7 +56,7 @@ jobs:
         run: sha256sum jira-${{ matrix.name }}.pp > jira-${{ matrix.name }}.pp.sha256
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jira-selinux-${{ matrix.name }}
           path: |
@@ -68,10 +68,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
