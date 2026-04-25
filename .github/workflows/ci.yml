@@ -12,8 +12,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - distro: registry.access.redhat.com/ubi9/ubi:latest
-            name: RHEL 9 (UBI)
+          - distro: rockylinux:9
+            name: Rocky Linux 9
           - distro: quay.io/centos/centos:stream9
             name: CentOS Stream 9
           - distro: almalinux:9

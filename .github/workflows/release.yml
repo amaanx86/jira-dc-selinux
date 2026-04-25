@@ -14,9 +14,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - distro: registry.access.redhat.com/ubi9/ubi:latest
-            name: rhel9
-            label: RHEL 9 (UBI)
+          - distro: rockylinux:9
+            name: el9
+            label: Rocky Linux 9
           - distro: quay.io/centos/centos:stream9
             name: centos-stream9
             label: CentOS Stream 9
@@ -79,37 +79,42 @@ jobs:
       - name: List release assets
         run: ls -lh artifacts/
 
+      - name: Generate release notes
+        run: |
+          cat > notes.md <<'EOF'
+          ## Installation
+
+          ```bash
+          # Download the module for your distro
+          curl -LO <asset-url>/jira-el9.pp
+
+          # Verify checksum
+          sha256sum -c jira-el9.pp.sha256
+
+          # Install
+          sudo semodule -i jira-el9.pp
+
+          # Relabel Jira directories
+          sudo restorecon -RFv /opt/atlassian/jira
+          sudo restorecon -RFv /var/atlassian/application-data/jira
+          ```
+
+          ## Supported Platforms
+
+          | File | Platform |
+          |------|----------|
+          | `jira-el9.pp` | RHEL 9 / Rocky Linux 9 |
+          | `jira-centos-stream9.pp` | CentOS Stream 9 |
+          | `jira-almalinux9.pp` | AlmaLinux 9 |
+          | `jira-fedora.pp` | Fedora (latest) |
+          EOF
+
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          files: |
-            artifacts/jira-*.pp
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --notes-file notes.md \
+            artifacts/jira-*.pp \
             artifacts/jira-*.sha256
-          body: |
-            ## Jira DC SELinux Policy Module
-
-            ### Installation
-
-            ```bash
-            # Download the module for your distro
-            curl -LO <release-asset-url>/jira-el9.pp
-
-            # Verify checksum
-            sha256sum -c jira-el9.pp.sha256
-
-            # Install
-            sudo semodule -i jira-el9.pp
-
-            # Relabel Jira directories
-            sudo restorecon -RFv /opt/atlassian/jira
-            sudo restorecon -RFv /var/atlassian/application-data/jira
-            ```
-
-            ### Supported Platforms
-            | File | Platform |
-            |------|----------|
-            | `jira-rhel9.pp` | RHEL 9 (built on UBI 9) |
-            | `jira-centos-stream9.pp` | CentOS Stream 9 |
-            | `jira-almalinux9.pp` | AlmaLinux 9 |
-            | `jira-fedora.pp` | Fedora (latest) |
